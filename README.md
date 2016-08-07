@@ -57,14 +57,14 @@ Now that you have the server ready to go, the next step is to make your plugin q
 2. Move the `plugin-update-checker` directory to your plugin's directory.
 3. Add the following code to your main plugin file:
 
-   ```php
-require 'path/to/plugin-update-checker/plugin-update-checker.php';
-$MyUpdateChecker = PucFactory::buildUpdateChecker(
-    'http://example.com/wp-update-server/?action=get_metadata&slug=plugin-directory-name', //Metadata URL.
-    __FILE__, //Full path to the main plugin file.
-    'plugin-directory-name' //Plugin slug. Usually it's the same as the name of the directory.
-);
-```
+	```php
+	require 'path/to/plugin-update-checker/plugin-update-checker.php';
+	$MyUpdateChecker = PucFactory::buildUpdateChecker(
+		'http://example.com/wp-update-server/?action=get_metadata&slug=plugin-directory-name', //Metadata URL.
+		__FILE__, //Full path to the main plugin file.
+		'plugin-directory-name' //Plugin slug. Usually it's the same as the name of the directory.
+	);
+	```
 4. When you're ready to release an update, just zip the plugin directory as described above and put it in the `packages` subdirectory on the server (overwriting the previous version). 
 
 The library will check for updates twice a day by default. If the update checker discovers that a new version is available, it will display an update notification in the WordPress Dashboard and the user will be able to install it by clicking the "upgrade now" link. It works just like with plugins hosted on WordPress.org from the users' perspective. 
@@ -81,18 +81,18 @@ See the [update checker docs](http://w-shadow.com/blog/2010/09/02/automatic-upda
 2. Place the `theme-updates` directory in your `includes` or the equivalent.
 3. Add this snippet to your `functions.php`:
 
-   ```php
-require 'path/to/theme-updates/theme-update-checker.php';
-$MyThemeUpdateChecker = new ThemeUpdateChecker(
-    'theme-directory-name', //Theme slug. Usually the same as the name of its directory.
-    'http://example.com/wp-update-server/?action=get_metadata&slug=theme-directory-name' //Metadata URL.
-);
-```
+	```php
+	require 'path/to/theme-updates/theme-update-checker.php';
+	$MyThemeUpdateChecker = new ThemeUpdateChecker(
+		'theme-directory-name', //Theme slug. Usually the same as the name of its directory.
+		'http://example.com/wp-update-server/?action=get_metadata&slug=theme-directory-name' //Metadata URL.
+	);
+	```
 4. Add a `Details URI` header to your `style.css`:
 
-  ```Details URI: http://example.com/my-theme-changelog.html```
+	```Details URI: http://example.com/my-theme-changelog.html```
   
-  This header specifies the page that the user will see if they click the "View version x.y.z details" link in an update notification. Set it to the URL of your "What’s New In Version z.y.z" page or the theme homepage.
+	This header specifies the page that the user will see if they click the "View version x.y.z details" link in an update notification. Set it to the URL of your "What’s New In Version z.y.z" page or the theme homepage.
 
 Like with plugin updates, the theme update checker will query the server for theme details every 12 hours and display an update notification in the WordPress Dashboard if a new version is available.
 
@@ -162,13 +162,16 @@ Author: Yahnis Elsts
 Author URI: http://w-shadow.com/
 */
 
+require_once __DIR__ . '/path/to/wp-update-server/loader.php';
+
 class ExamplePlugin {
 	protected $updateServer;
 
 	public function __construct() {
-		require_once __DIR__ . '/path/to/wp-update-server/loader.php';
-		$this->updateServer = new Wpup_UpdateServer(home_url('/'));
+		$this->updateServer = new MyCustomServer(home_url('/'));
 		
+		//The "action" and "slug" query parameters are often used by the WordPress core
+		//or other plugins, so lets use different parameter names to avoid conflict.
 		add_filter('query_vars', array($this, 'addQueryVariables'));
 		add_action('template_redirect', array($this, 'handleUpdateApiRequest'));
 	}
@@ -191,10 +194,20 @@ class ExamplePlugin {
 	}
 }
 
+class MyCustomServer extends Wpup_UpdateServer {
+    protected function generateDownloadUrl(Wpup_Package $package) {
+        $query = array(
+            'update_action' => 'download',
+            'update_slug' => $package->slug,
+        );
+        return self::addQueryArg($query, $this->serverUrl);
+    }
+}
+
 $examplePlugin = new ExamplePlugin();
 ```
 
-**Note:** If you intend to use something like the above in practice, you'll probably want to override `Wpup_UpdateServer::generateDownloadUrl()` to use your own URL structure or query variable names.
+**Note:** If you intend to use something like the above in practice, you'll probably want to override `Wpup_UpdateServer::generateDownloadUrl()` to customize the URLs or change the query parameters.
 
 ### Securing download links
 
